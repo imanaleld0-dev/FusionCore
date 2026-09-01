@@ -45,7 +45,8 @@ android {
         cmake {
             path = File("./src/main/jni/CMakeLists.txt")
             version = "3.22.1"
-            arguments += "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+            // Use a list when adding arguments in Kotlin DSL
+            arguments += listOf("-DCMAKE_BUILD_TYPE=RelWithDebInfo")
         }
     }
 
