@@ -45,7 +45,7 @@ android {
         cmake {
             path = File("./src/main/jni/CMakeLists.txt")
             version = "3.22.1"
-            arguments.add("-DCMAKE_BUILD_TYPE=RelWithDebInfo")
+            arguments += "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
         }
     }
 
