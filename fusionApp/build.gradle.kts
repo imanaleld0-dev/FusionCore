@@ -45,8 +45,6 @@ android {
         cmake {
             path = File("./src/main/jni/CMakeLists.txt")
             version = "3.22.1"
-            // Initialize arguments as a mutable list
-            arguments = mutableListOf("-DCMAKE_BUILD_TYPE=RelWithDebInfo")
         }
     }
 
