@@ -34,11 +34,18 @@ jobs:
         if: github.ref_type == 'tag'
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > ${{ runner.temp }}/keystore.jks
-
-      - name: Build Release APK
-        if: github.ref_type == 'tag'
-        run: ./gradlew assembleRelease
-        env:
+      
+            -- name: Upload Native Debug Symbols
+            uses: actions/upload-artifact*v4
+            with:
+            name: native-debug-symbols
+            path: |
+            **/build/intermediates/merged_native_libs/*/out/lib/
+            **/build/intermediates/stripped_native_libs/*/out/lib/
+            name: Build Release APK
+            if: github.ref_type == 'tag'
+            run: ./gradlew assembleRelease
+            env:
           KEYSTORE_PATH: ${{ runner.temp }}/keystore.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
