@@ -52,7 +52,7 @@ android {
         create("release") {
             storeFile = file(System.getenv("KEYSTORE_PATH") ?: "keystore.jks")
             storePassword = System.getenv("KEYSTORE_PASSWORD")
-            keyAlias ("fusioncore")
+            keyAlias = "fusioncore"
             keyPassword = System.getenv("KEY_PASSWORD")
         }
     }
