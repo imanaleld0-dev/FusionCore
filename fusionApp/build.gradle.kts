@@ -45,6 +45,7 @@ android {
         cmake {
             path = File("./src/main/jni/CMakeLists.txt")
             version = "3.22.1"
+            arguments.add("-DCMAKE_BUILD_TYPE=RelWithDebInfo")
         }
     }
 
@@ -58,6 +59,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Keep debug symbols in debug builds
+            isMinifyEnabled = false
+        }
         release {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
@@ -69,6 +74,7 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
+            // Keep debug symbols for all architectures
             keepDebugSymbols += listOf("*/armeabi-v7a/*.so", "*/arm64-v8a/*.so")
         }
     }
