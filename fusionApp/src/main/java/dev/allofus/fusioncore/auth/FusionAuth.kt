@@ -6,7 +6,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.googleandroid.gms.authapi.signin.GoogleSignInAccount
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
@@ -65,7 +65,7 @@ object FusionAuth {
         val json = JSONObject().apply {
             put("idToken", idToken)
             put("connectToken", authCode)
-            put("productUserId", account.id ?: "")
+            put("productUserId", account.getId() ?: "")
             put("credentialType", 12) // GOOGLE_ID_TOKEN
             put("expiresAt", expiry)
         }
