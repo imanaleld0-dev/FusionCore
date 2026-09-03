@@ -63,6 +63,10 @@ android {
             
             isMinifyEnabled = false
         }
+    repositories {
+        google()
+        mavenCentral()
+    }
         release {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
