@@ -3,7 +3,6 @@ plugins {
     id("com.google.protobuf")
 }
 
-// we have a custom pine build that fixes 16KB library problem.
 val pineAar = file("../libs/canyie-pine.aar")
 dependencies {
     implementation("androidx.core:core:1.19.0")
