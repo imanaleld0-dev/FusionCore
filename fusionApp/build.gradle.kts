@@ -60,7 +60,7 @@ android {
 
     buildTypes {
         debug {
-            // Keep debug symbols in debug builds
+            
             isMinifyEnabled = false
         }
         release {
