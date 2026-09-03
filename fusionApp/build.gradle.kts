@@ -3,10 +3,6 @@ plugins {
     id("com.google.protobuf")
 }
 
-repositories {
-    mavenCentral()
-}
-
 val pineAar = file("../libs/canyie-pine.aar")
 dependencies {
     implementation("androidx.core:core:1.19.0")
