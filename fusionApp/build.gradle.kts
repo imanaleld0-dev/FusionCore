@@ -3,6 +3,10 @@ plugins {
     id("com.google.protobuf")
 }
 
+repositories {
+    mavenCentral()
+}
+
 val pineAar = file("../libs/canyie-pine.aar")
 dependencies {
     implementation("androidx.core:core:1.19.0")
@@ -59,12 +63,8 @@ android {
 
     buildTypes {
         debug {
-            
             isMinifyEnabled = false
         }
-    repositories {
-        mavenCentral()
-    }
         release {
             signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
