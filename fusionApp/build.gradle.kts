@@ -64,7 +64,6 @@ android {
             isMinifyEnabled = false
         }
     repositories {
-        google()
         mavenCentral()
     }
         release {
