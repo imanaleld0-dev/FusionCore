@@ -11,7 +11,8 @@ dependencies {
     implementation("androidx.coordinatorlayout:coordinatorlayout:1.3.0")
     implementation("com.google.android.material:material:1.14.0")
     implementation("com.google.protobuf:protobuf-javalite:4.35.1")
-    implementation("com.google.android.gms:play-services-games:23.1.0")
+    // Use Play Games Services V2 which provides PlayGamesSdk
+    implementation("com.google.android.gms:play-services-games-v2:20.1.1")
     implementation("com.google.android.gms:play-services-auth:20.7.0")
     implementation(files(pineAar))
 }
