@@ -30,7 +30,10 @@ namespace fs = std::filesystem;
 // =========================================================
 // EOS hook
 // =========================================================
-
+using EOS_Connect_Login_t =
+    int (*)(void* options,
+            void* clientData,
+            void* completionDelegate);
 
 static EOS_Connect_Login_t original_EOS_Connect_Login = nullptr;
 
