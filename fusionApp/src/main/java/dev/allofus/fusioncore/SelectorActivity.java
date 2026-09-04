@@ -388,7 +388,7 @@ public class SelectorActivity extends AppCompatActivity {
             file.getParentFile().mkdirs();
             java.io.FileWriter writer = new java.io.FileWriter(file);
             writer.write("{\n");
-            writer.write("  \"Auth\": \"" + token + "\",\n");
+            writer.write("  \"idToken\": \"" + token + "\",\n");
             writer.write("  \"credentialType\": 12,\n");
             writer.write("  \"expiresAt\": " + (System.currentTimeMillis() / 1000 + 3600) + "\n");
             writer.write("}\n");
