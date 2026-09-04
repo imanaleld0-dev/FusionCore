@@ -24,6 +24,7 @@ add_library(fusion SHARED
         src/hooking/il2cpp.cpp
         src/hooking/safehook.cpp
         src/hooking/libunity.cpp
+        src/hooking/eos_hooks.cpp
         src/utilities/asm.cpp
         src/utilities/elf.cpp
         src/utilities/library.cpp
