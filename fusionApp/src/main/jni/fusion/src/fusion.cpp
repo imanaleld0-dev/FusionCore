@@ -520,11 +520,9 @@ int il2cpp_init_hook(char* domain_name)
         domain_name
     );
 
-    il2cpp_destroy_init_hook();
+     il2cpp_destroy_init_hook();
 
-
-    
-    install_eos_hooks();
+     install_eos_hooks();
 
 
     // -----------------------------------------------------
@@ -547,7 +545,6 @@ int il2cpp_init_hook(char* domain_name)
         setenv(
             "FUSION_BEPINEX_PATH",
             runtimeConfig.bepInExDirectory.c_str(),
-            1
         );
 
         setenv(
