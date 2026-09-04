@@ -77,7 +77,7 @@ static std::string ReadTokenFromFile() {
     return token;
 }
 
-int Hooked_EOS_Connect_Login(void* options, void* clientData, void* completionDelegate) {
+int Hooked_EOS_Connect_Login(void* options, void* clientData, void* completionDelegate); {
     LOGI("=== HOOKED: EOS_Connect_Login ===");
     
     if (options != nullptr) {
@@ -144,7 +144,7 @@ int Hooked_EOS_Connect_Login(void* options, void* clientData, void* completionDe
     return -1;
 }
 
-void install_eos_hooks() {
+void install_eos_hooks(); {
     LOGI("Installing EOS hooks...");
     
     void* eos_handle = dlopen("libEOSSDK.so", RTLD_LAZY);
