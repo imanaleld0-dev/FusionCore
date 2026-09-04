@@ -4,7 +4,6 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-
 #include <dlfcn.h>
 #include <android/log.h>
 
