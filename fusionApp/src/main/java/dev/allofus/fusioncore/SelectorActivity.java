@@ -228,7 +228,7 @@ public class SelectorActivity extends AppCompatActivity {
             return;
         }
     }
-        
+    }
     private List<AppEntry> resolveInstalledTargets() {
         PackageManager pm = getPackageManager();
         List<AppEntry> result = new ArrayList<>();
@@ -295,7 +295,7 @@ public class SelectorActivity extends AppCompatActivity {
         }
 
         return result;
-    }
+    
     }
     private static boolean hasIl2Cpp(ApplicationInfo info) {
         List<String> apkPaths = new ArrayList<>();
