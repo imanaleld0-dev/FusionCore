@@ -5,9 +5,8 @@
 #include <sstream>
 #include <string>
 #include <dlfcn.h>
-#include <android/log.h
+#include <android/log.h>
 #include <external/dobby.h>
-
 #define TAG "EOS_Hooks"
 
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
