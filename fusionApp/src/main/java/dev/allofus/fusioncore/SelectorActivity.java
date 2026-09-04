@@ -28,7 +28,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
-import com.unity3d.player.UnityPlayer;
+
 
 import java.io.File;
 import java.util.ArrayList;
@@ -389,14 +389,6 @@ public class SelectorActivity extends AppCompatActivity {
             Log.i(TAG, "Token saved to /storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/dev.xtracube.authfix.cfg");
         } catch (Exception e) {
             Log.e(TAG, "Failed to save token: " + e.getMessage());
-        }
-    }
-    
-    private void UnitySendMessage(String gameObject, String method, String message) {
-        try {
-            UnityPlayer.UnitySendMessage(gameObject, method, message);
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to send message to Unity: " + e.getMessage());
         }
     }
     
