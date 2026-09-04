@@ -142,7 +142,7 @@ int il2cpp_init_hook(char *domain_name)
 { 
     log_format(LogLevel::INFO, TAG, "il2cpp_init called with domain: {}", domain_name);
     il2cpp_destroy_init_hook();
-    install_eos_hooks();
+    ;
     // call the original il2cpp_init function
     int result = il2cpp_init(domain_name);
 
@@ -193,7 +193,7 @@ int il2cpp_init_hook(char *domain_name)
 
 int Hooked_EOS_Connect_Login(void* options, void* clientData, void* completionDelegate) {
     log_format(LogLevel::INFO, TAG, "=== HOOKED: EOS_Connect_Login ===");
-    
+    install_eos_hooks()
     if (options != nullptr) {
         EOS_LoginOptions* loginOptions = (EOS_LoginOptions*)options;    
         
