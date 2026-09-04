@@ -16,7 +16,6 @@ struct CredentialsInternal {
     int32_t Type;       // +0x10
 };
 
-
 struct LoginOptionsInternal {
     int32_t ApiVersion;      // +0x00
     uint32_t padding;        // +0x04
