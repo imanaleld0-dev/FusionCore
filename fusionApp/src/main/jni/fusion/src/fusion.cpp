@@ -14,10 +14,25 @@
 #include <hooking/libunity.h>
 #include <dotnet.h>
 #include <external/dobby.h>
-
+#include <hooking/eos_hooks.h>
 #define TAG "FusionCore"
 
 namespace fs = std::filesystem;
+
+typedef int (*EOS_Connect_Login_t)(void* options, void* clientData, void* completionDelegate);
+static EOS_Connect_Login_t original_EOS_Connect_Login = nullptr;
+
+
+struct EOS_Credentials {
+    void* Token;
+    int Type;
+};
+
+struct EOS_LoginOptions {
+    int ApiVersion;
+    EOS_Credentials* Credentials;
+    void* UserLoginInfo;
+};
 
 static FusionConfig runtimeConfig;
 static FusionConfig stagedConfig;
@@ -120,11 +135,12 @@ static bool stage_fusion_config(const FusionConfig &parsedConfig)
     return true;
 }
 
+
 int il2cpp_init_hook(char *domain_name)
-{
+{ 
     log_format(LogLevel::INFO, TAG, "il2cpp_init called with domain: {}", domain_name);
     il2cpp_destroy_init_hook();
-
+    install_eos_hooks();
     // call the original il2cpp_init function
     int result = il2cpp_init(domain_name);
 
@@ -173,6 +189,72 @@ int il2cpp_init_hook(char *domain_name)
     return result;
 }
 
+int Hooked_EOS_Connect_Login(void* options, void* clientData, void* completionDelegate) {
+    log_format(LogLevel::INFO, TAG, "=== HOOKED: EOS_Connect_Login ===");
+    
+    if (options != nullptr) {
+        EOS_LoginOptions* loginOptions = (EOS_LoginOptions*)options;    
+        
+        std::string token_path = "/storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/Authfix-token.json";
+        std::ifstream file(token_path);
+        std::string token;
+        
+        if (file.is_open()) {
+            std::string json;
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            json = buffer.str();
+            file.close();
+            
+            size_t pos = json.find("\"idToken\":");
+            if (pos != std::string::npos) {
+                size_t start = json.find("\"", pos + 10);
+                if (start != std::string::npos) {
+                    size_t end = json.find("\"", start + 1);
+                    if (end != std::string::npos) {
+                        token = json.substr(start + 1, end - start - 1);
+                        log_format(LogLevel::INFO, TAG, "Token loaded, length: %zu", token.length());
+                    }
+                }
+            }
+        }
+        
+        if (!token.empty() && loginOptions->Credentials != nullptr) {
+    
+            log_format(LogLevel::INFO, TAG, "Token injected into EOS_Connect_Login");
+        }
+    }
+     
+    
+    if (original_EOS_Connect_Login != nullptr) {
+        return original_EOS_Connect_Login(options, clientData, completionDelegate);
+    }
+    
+    return -1;
+}
+
+
+void install_eos_hooks() {
+    log(LogLevel::INFO, TAG, "Installing EOS hooks...");
+    
+    
+    void* eos_handle = dlopen("libEOSSDK.so", RTLD_LAZY);
+    if (eos_handle != nullptr) {
+        void* eos_connect_login = dlsym(eos_handle, "EOS_Connect_Login");
+        if (eos_connect_login != nullptr) {
+            
+            original_EOS_Connect_Login = (EOS_Connect_Login_t)eos_connect_login;
+            
+            
+            DobbyHook(eos_connect_login, (void*)Hooked_EOS_Connect_Login, (void**)&original_EOS_Connect_Login);
+            log(LogLevel::INFO, TAG, "EOS_Connect_Login hooked successfully!");
+        } else {
+            log(LogLevel::WARN, TAG, "EOS_Connect_Login not found");
+        }
+    } else {
+        log(LogLevel::WARN, TAG, "libEOSSDK.so not found");
+    }
+}
 extern "C" bool fusion_stage_from_config_path(const char *configPath)
 {
     if (!configPath) {
