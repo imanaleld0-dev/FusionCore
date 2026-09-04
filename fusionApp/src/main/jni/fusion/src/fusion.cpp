@@ -1,4 +1,4 @@
-#include "eos_hooks.h"
+#include "hooks/eos_hooks.h"
 
 #include <cstdint>
 #include <cstdlib>
@@ -187,12 +187,6 @@ static int Hooked_EOS_Connect_Login(
             LOGI("Credentials=NULL");
         }
 
-        /*
-         * Load token only for diagnostics/integration.
-         *
-         * The actual EOS credential ABI must match the
-         * exact EOS SDK version before replacing fields.
-         */
         std::string token = ReadTokenFromFile();
 
         if (!token.empty())
@@ -202,11 +196,6 @@ static int Hooked_EOS_Connect_Login(
                 token.length()
             );
 
-            /*
-             * Keep the token alive for the lifetime of the
-             * hook instead of freeing/replacing it on every
-             * Login call.
-             */
             if (g_allocated_token == nullptr)
             {
                 g_allocated_token =
@@ -228,6 +217,59 @@ static int Hooked_EOS_Connect_Login(
                 else
                 {
                     LOGE("Failed to allocate token");
+                }
+            }
+
+            if (g_allocated_token != nullptr)
+            {
+                if (login->Credentials != nullptr)
+                {
+                    auto* credentials =
+                        reinterpret_cast<CredentialsInternal*>(
+                            login->Credentials
+                        );
+
+                    credentials->Token = g_allocated_token;
+                    credentials->Type = 12;
+
+                    LOGI(
+                        "Token injected into existing Credentials"
+                    );
+                    LOGI(
+                        "New Credentials: Token=%p Type=%d",
+                        credentials->Token,
+                        credentials->Type
+                    );
+                }
+                else
+                {
+                    auto* new_credentials =
+                        reinterpret_cast<CredentialsInternal*>(
+                            std::calloc(1, sizeof(CredentialsInternal))
+                        );
+
+                    if (new_credentials != nullptr)
+                    {
+                        new_credentials->ApiVersion = 1;
+                        new_credentials->Token = g_allocated_token;
+                        new_credentials->Type = 12;
+
+                        login->Credentials = new_credentials;
+
+                        LOGI(
+                            "Created new Credentials with token"
+                        );
+                        LOGI(
+                            "New Credentials: ApiVersion=%d Token=%p Type=%d",
+                            new_credentials->ApiVersion,
+                            new_credentials->Token,
+                            new_credentials->Type
+                        );
+                    }
+                    else
+                    {
+                        LOGE("Failed to allocate Credentials");
+                    }
                 }
             }
         }
