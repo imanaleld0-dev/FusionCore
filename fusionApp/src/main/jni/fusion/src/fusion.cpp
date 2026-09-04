@@ -1,241 +1,362 @@
-// Copyright (c) 2026 XtraCube
-#include <unistd.h>
-#include <jni.h>
-#include <filesystem>
+#include "eos_hooks.h"
+
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
-#include <mutex>
-#include <unordered_map>
-#include <logger.h>
-#include <libmain.h>
-#include <fusion_config.h>
-#include <hooking/il2cpp.h>
-#include <hooking/safehook.h>
-#include <hooking/allocator.h>
-#include <hooking/libunity.h>
-#include <dotnet.h>
-#include <external/dobby.h>
-#include <hooking/eos_hooks.h>
 #include <sstream>
+#include <string>
 
-#define TAG "FusionCore"
+#include <dlfcn.h>
+#include <android/log.h>
 
-namespace fs = std::filesystem;
+#include <external/dobby.h>
 
-typedef int (*EOS_Connect_Login_t)(void* options, void* clientData, void* completionDelegate);
+#define TAG "EOS_Hooks"
+
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, TAG, __VA_ARGS__)
+
+using EOS_Connect_Login_t =
+    int (*)(void* options, void* clientData, void* completionDelegate);
+
 static EOS_Connect_Login_t original_EOS_Connect_Login = nullptr;
 
+static void* g_allocated_token = nullptr;
+static void* g_allocated_credentials = nullptr;
 
-struct EOS_Credentials {
+
+// ---------------------------------------------------------
+// Structures used only for inspecting the incoming ABI.
+// ---------------------------------------------------------
+
+struct CredentialsInternal
+{
+    int32_t ApiVersion;
+    uint32_t Padding;
     void* Token;
-    int Type;
+    int32_t Type;
 };
 
-struct EOS_LoginOptions {
-    int ApiVersion;
-    EOS_Credentials* Credentials;
+struct LoginOptionsInternal
+{
+    int32_t ApiVersion;
+    uint32_t Padding;
+    void* Credentials;
     void* UserLoginInfo;
 };
 
-static FusionConfig runtimeConfig;
-static FusionConfig stagedConfig;
-static std::string stagedPatchedIl2CppPath;
-static std::mutex stageMutex;
-static bool hasStagedConfig = false;
 
-static std::unordered_map<std::string, std::string> read_key_value_file(const char *configPath)
+// ---------------------------------------------------------
+// Token loader
+// ---------------------------------------------------------
+
+static std::string ReadTokenFromFile()
 {
-    std::unordered_map<std::string, std::string> values;
-    std::ifstream input(configPath);
-    std::string line;
-
-    while (std::getline(input, line)) {
-        if (line.empty()) {
-            continue;
-        }
-
-        size_t split = line.find('=');
-        if (split == std::string::npos) {
-            continue;
-        }
-
-        std::string key = line.substr(0, split);
-        std::string value = line.substr(split + 1);
-        values[key] = value;
-    }
-
-    return values;
-}
-
-static bool parse_bool_value(const std::string &value)
-{
-    return value == "1" || value == "true" || value == "TRUE";
-}
-
-static bool parse_fusion_config_from_file(const char *configPath, FusionConfig *config)
-{
-    auto values = read_key_value_file(configPath);
-    if (values.empty()) {
-        log_format(LogLevel::ERROR, TAG, "Config file is empty or unreadable: {}", configPath);
-        return false;
-    }
-
-    config->gameLibraryDirectory = values["gameLibraryDirectory"];
-    config->appLibraryDirectory = values["appLibraryDirectory"];
-    config->appDataDirectory = values["appDataDirectory"];
-    config->bepInExDirectory = values["bepInExDirectory"];
-    config->dotnetDirectory = values["dotnetDirectory"];
-    config->unityDataDirectory = values["unityDataDirectory"];
-    config->unityVersion = values["unityVersion"];
-    config->useOriginalLibUnity = parse_bool_value(values["useOriginalLibUnity"]);
-
-    if (config->gameLibraryDirectory.empty() || config->appDataDirectory.empty()) {
-        log_format(LogLevel::ERROR, TAG, "Invalid config file (missing required fields): {}", configPath);
-        return false;
-    }
-
-    config->initialized = true;
-    return true;
-}
-
-static bool stage_fusion_config(const FusionConfig &parsedConfig)
-{
-    fusion_print_config(parsedConfig);
-
-    fs::path gameLibsPath(parsedConfig.gameLibraryDirectory);
-    fs::path appDataPath(parsedConfig.appDataDirectory);
-
-    fs::path libIl2Cpp = gameLibsPath / "libil2cpp.so";
-    fs::path libUnity;
-
-    if (parsedConfig.useOriginalLibUnity)
+    const char* paths[] =
     {
-        libUnity = gameLibsPath / "libunity.so";
+        "/storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/Authfix-token.json",
+        "/sdcard/FusionCore/fusion_auth.json"
+    };
+
+    std::ifstream file;
+
+    for (const char* path : paths)
+    {
+        file.open(path);
+
+        if (file.is_open())
+        {
+            LOGI("Opened token file: %s", path);
+            break;
+        }
+
+        file.clear();
+    }
+
+    if (!file.is_open())
+    {
+        LOGE("Could not open token file");
+        return {};
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+
+    const std::string json = buffer.str();
+
+    file.close();
+
+    if (json.empty())
+    {
+        LOGE("Token JSON is empty");
+        return {};
+    }
+
+    size_t pos = json.find("\"idToken\"");
+
+    if (pos == std::string::npos)
+    {
+        LOGE("idToken field not found");
+        return {};
+    }
+
+    pos = json.find(':', pos);
+
+    if (pos == std::string::npos)
+    {
+        LOGE("Invalid idToken JSON field");
+        return {};
+    }
+
+    size_t start = json.find('"', pos + 1);
+
+    if (start == std::string::npos)
+    {
+        LOGE("idToken value start not found");
+        return {};
+    }
+
+    size_t end = json.find('"', start + 1);
+
+    if (end == std::string::npos)
+    {
+        LOGE("idToken value end not found");
+        return {};
+    }
+
+    std::string token =
+        json.substr(start + 1, end - start - 1);
+
+    if (token.empty())
+    {
+        LOGE("idToken is empty");
+        return {};
+    }
+
+    LOGI("Token loaded, length=%zu", token.length());
+
+    return token;
+}
+
+
+// ---------------------------------------------------------
+// EOS Login hook
+// ---------------------------------------------------------
+
+static int Hooked_EOS_Connect_Login(
+    void* options,
+    void* clientData,
+    void* completionDelegate)
+{
+    LOGI("========================================");
+    LOGI("EOS_Connect_Login intercepted");
+    LOGI("options=%p", options);
+    LOGI("clientData=%p", clientData);
+    LOGI("completionDelegate=%p", completionDelegate);
+
+    if (options != nullptr)
+    {
+        auto* login =
+            reinterpret_cast<LoginOptionsInternal*>(options);
+
+        LOGI(
+            "LoginOptions: ApiVersion=%d Credentials=%p UserLoginInfo=%p",
+            login->ApiVersion,
+            login->Credentials,
+            login->UserLoginInfo
+        );
+
+        if (login->Credentials != nullptr)
+        {
+            auto* credentials =
+                reinterpret_cast<CredentialsInternal*>(
+                    login->Credentials
+                );
+
+            LOGI(
+                "Credentials: ApiVersion=%d Token=%p Type=%d",
+                credentials->ApiVersion,
+                credentials->Token,
+                credentials->Type
+            );
+        }
+        else
+        {
+            LOGI("Credentials=NULL");
+        }
+
+        /*
+         * Load token only for diagnostics/integration.
+         *
+         * The actual EOS credential ABI must match the
+         * exact EOS SDK version before replacing fields.
+         */
+        std::string token = ReadTokenFromFile();
+
+        if (!token.empty())
+        {
+            LOGI(
+                "Token successfully read, length=%zu",
+                token.length()
+            );
+
+            /*
+             * Keep the token alive for the lifetime of the
+             * hook instead of freeing/replacing it on every
+             * Login call.
+             */
+            if (g_allocated_token == nullptr)
+            {
+                g_allocated_token =
+                    std::malloc(token.size() + 1);
+
+                if (g_allocated_token != nullptr)
+                {
+                    std::memcpy(
+                        g_allocated_token,
+                        token.c_str(),
+                        token.size() + 1
+                    );
+
+                    LOGI(
+                        "Token allocated at %p",
+                        g_allocated_token
+                    );
+                }
+                else
+                {
+                    LOGE("Failed to allocate token");
+                }
+            }
+        }
+        else
+        {
+            LOGW("No token available");
+        }
     }
     else
     {
-        libUnity = appDataPath / "libunity.so";
+        LOGW("EOS_Connect_Login received NULL options");
     }
 
-    std::string libUnityPath = libUnity.string();
-    try_hook_libunity(libUnityPath, (gameLibsPath / "libunity.so").string());
-
-    fs::path patchedLibIl2Cpp = appDataPath / "libil2cpp.so";
-    allocate_setup_injected(libIl2Cpp.c_str(), patchedLibIl2Cpp.c_str(), 1024 * 1024);
-
-    std::string patchedPath = patchedLibIl2Cpp.string();
-    libmain_set_override_il2cpp_path(patchedPath.c_str());
-    libmain_set_override_unity_path(libUnityPath.c_str());
-
+    if (original_EOS_Connect_Login == nullptr)
     {
-        std::lock_guard<std::mutex> guard(stageMutex);
-        stagedConfig = parsedConfig;
-        stagedPatchedIl2CppPath = patchedPath;
-        hasStagedConfig = true;
+        LOGE("Original EOS_Connect_Login is NULL");
+        return -1;
     }
 
-    log(LogLevel::INFO, TAG, "FusionCore config staged successfully.");
-    return true;
-}
+    LOGI("Calling original EOS_Connect_Login...");
 
+    int result =
+        original_EOS_Connect_Login(
+            options,
+            clientData,
+            completionDelegate
+        );
 
-int il2cpp_init_hook(char *domain_name)
-{ 
-    log_format(LogLevel::INFO, TAG, "il2cpp_init called with domain: {}", domain_name);
-    il2cpp_destroy_init_hook();
-    
-    // call the original il2cpp_init function
-    int result = il2cpp_init(domain_name);
+    LOGI(
+        "Original EOS_Connect_Login returned %d",
+        result
+    );
 
-    if (runtimeConfig.initialized)
-    {
-        // setup environment variables
-        setenv("BEPINEX_GAME_ASSEMBLY_PATH", libmain_get_override_il2cpp_path(), 1);
-        setenv("FUSION_BEPINEX_PATH", runtimeConfig.bepInExDirectory.c_str(), 1);
-        setenv("FUSION_GAME_BINARY", libmain_get_override_il2cpp_path(), 1);
-        setenv("FUSION_GAME_DATA_DIR", runtimeConfig.unityDataDirectory.c_str(), 1);
-        setenv("FUSION_APP_DATA_DIR", runtimeConfig.appDataDirectory.c_str(), 1);
-        setenv("FUSION_UNITY_VERSION", runtimeConfig.unityVersion.c_str(), 1);
-
-        const char *ssl_cert_path = "/apex/com.android.conscrypt/cacerts";
-        const char *backup_cert_path = "/system/etc/security/cacerts";
-        if (access(ssl_cert_path, R_OK) == 0) {
-            setenv("SSL_CERT_DIR", ssl_cert_path, 1);
-        } else if (access(backup_cert_path, R_OK) == 0) {
-            setenv("SSL_CERT_DIR", backup_cert_path, 1);
-        } else {
-            log(LogLevel::WARN, TAG, "No readable SSL cert file found; HTTPS requests may fail.");
-        }
-        log_format(LogLevel::INFO, TAG, "Using {} for SSL certificates", getenv("SSL_CERT_DIR"));
-
-        fs::path bepInExCoreDirectory = fs::path(runtimeConfig.bepInExDirectory) / "core";
-
-        DotNetConfig dotNetConfig;
-        dotNetConfig.runtimeDir = runtimeConfig.dotnetDirectory;
-        dotNetConfig.managedLibsDir = bepInExCoreDirectory.string();
-        dotNetConfig.entryPointAssembly = "BepInEx.Unity.IL2CPP";
-        dotNetConfig.entryPointType = "BepInEx.Unity.IL2CPP.FusionCoreEntrypoint";
-        dotNetConfig.entryPointMethod = "Start";
-
-        // set TMPDIR for MonoMod lib drops
-        setenv("TMPDIR", runtimeConfig.appDataDirectory.c_str(), 1);
-
-        // execute the managed assembly
-        dotnet_execute_assembly(dotNetConfig);
-    }
-    else
-    {
-        log(LogLevel::WARN, TAG, "FusionConfig not initialized. Skipping modloader initialization.");
-    }
-
-    log_format(LogLevel::INFO, TAG, "il2cpp_init returned: {}", result);
     return result;
 }
 
-int Hooked_EOS_Connect_Login(void* options, void* clientData, void* completionDelegate);
 
-void install_eos_hooks();
+// ---------------------------------------------------------
+// Cleanup
+// ---------------------------------------------------------
 
-extern "C" bool fusion_stage_from_config_path(const char *configPath);
-
-extern "C" bool fusion_bootstrap_from_libmain(JNIEnv *env)
+__attribute__((destructor))
+static void cleanup_eos_hooks()
 {
-    (void) env;
-
-    FusionConfig configToRun;
-    std::string patchedIl2CppPath;
+    if (g_allocated_token != nullptr)
     {
-        std::lock_guard<std::mutex> guard(stageMutex);
-        if (!hasStagedConfig)
-        {
-            log(LogLevel::ERROR, TAG, "No staged FusionConfig available; cannot bootstrap from libmain namespace.");
-            return false;
-        }
-
-        configToRun = stagedConfig;
-        patchedIl2CppPath = stagedPatchedIl2CppPath;
+        std::free(g_allocated_token);
+        g_allocated_token = nullptr;
     }
 
-    runtimeConfig = configToRun;
-
-    log(LogLevel::INFO, TAG, "Executing Fusion bootstrap from libmain namespace...");
-
-    if (!il2cpp_initialize(patchedIl2CppPath.c_str()))
+    if (g_allocated_credentials != nullptr)
     {
-        log_format(LogLevel::ERROR, TAG, "Failed to initialize il2cpp with path: {}", patchedIl2CppPath);
-        return false;
+        std::free(g_allocated_credentials);
+        g_allocated_credentials = nullptr;
     }
 
-    auto library_size = reinterpret_cast<size_t>(get_injected_pool_base() - il2cpp_get_library_base());
-    if (!safehook_initialize(il2cpp_get_handle(), il2cpp_get_library_base(), library_size, allocate_injected))
-    {
-        log(LogLevel::ERROR, TAG, "Failed to initialize SafeHook");
-        return false;
-    }
-
-    log(LogLevel::INFO, TAG, "Installing il2cpp hooks...");
-    il2cpp_install_init_hook(il2cpp_init_hook);
-    log(LogLevel::INFO, TAG, "il2cpp hooks installed successfully!");
-    log(LogLevel::INFO, TAG, "FusionCore bootstrap finished successfully.");
-    return true;
+    original_EOS_Connect_Login = nullptr;
 }
 
+
+// ---------------------------------------------------------
+// Hook installation
+// ---------------------------------------------------------
+
+void install_eos_hooks()
+{
+    LOGI("Installing EOS hooks...");
+
+    void* eos_handle =
+        dlopen("libEOSSDK.so", RTLD_NOW);
+
+    if (eos_handle == nullptr)
+    {
+        LOGE(
+            "dlopen(libEOSSDK.so) failed: %s",
+            dlerror()
+        );
+
+        return;
+    }
+
+    LOGI(
+        "libEOSSDK.so handle=%p",
+        eos_handle
+    );
+
+    void* target =
+        dlsym(
+            eos_handle,
+            "EOS_Connect_Login"
+        );
+
+    if (target == nullptr)
+    {
+        LOGE(
+            "EOS_Connect_Login not found: %s",
+            dlerror()
+        );
+
+        return;
+    }
+
+    LOGI(
+        "EOS_Connect_Login address=%p",
+        target
+    );
+
+    auto hook_result =
+        DobbyHook(
+            target,
+            reinterpret_cast<void*>(
+                Hooked_EOS_Connect_Login
+            ),
+            reinterpret_cast<void**>(
+                &original_EOS_Connect_Login
+            )
+        );
+
+    if (hook_result == 0)
+    {
+        LOGI(
+            "EOS_Connect_Login hooked successfully"
+        );
+    }
+    else
+    {
+        LOGE(
+            "DobbyHook failed: %d",
+            hook_result
+        );
+    }
+}
