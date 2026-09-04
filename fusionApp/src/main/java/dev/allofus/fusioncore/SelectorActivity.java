@@ -202,7 +202,6 @@ public class SelectorActivity extends AppCompatActivity {
                 cachedToken = token;
                 Log.i(TAG, "Token received from deep link: " + token.substring(0, Math.min(20, token.length())) + "...");
                 saveToken(token);
-                UnitySendMessage("AuthManager", "OnTokenReceived", token);
             }
             return;
         }
@@ -216,8 +215,7 @@ public class SelectorActivity extends AppCompatActivity {
                     cachedToken = token;
                     Log.i(TAG, "Token received from share: " + token.substring(0, Math.min(20, token.length())) + "...");
                     saveToken(token);
-                    UnitySendMessage("AuthManager", "OnTokenReceived", token);
-                }
+                    
             }
         }
     }
