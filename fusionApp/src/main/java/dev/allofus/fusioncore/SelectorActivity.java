@@ -28,8 +28,6 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
-
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
