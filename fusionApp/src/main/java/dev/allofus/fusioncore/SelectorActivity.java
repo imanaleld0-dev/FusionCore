@@ -194,31 +194,41 @@ public class SelectorActivity extends AppCompatActivity {
         String action = intent.getAction();
         String type = intent.getType();
         
-    
         Uri data = intent.getData();
-        if (data != null && "fusionauth".equals(data.getScheme())) {
+
+        if (data != null) {
+        String host = data.getHost();
+        String path = data.getPath();
+
+        if ("accounts.innersloth.com".equalsIgnoreCase(host)
+                && "/account-management".equals(path)) {
+
+            String store = data.getQueryParameter("store");
             String token = data.getQueryParameter("token");
-            if (token != null) {
+
+            if (token != null && !token.isEmpty()) {
+
                 cachedToken = token;
-                Log.i(TAG, "Token received from deep link: " + token.substring(0, Math.min(20, token.length())) + "...");
+
+                Log.i(
+                        TAG,
+                        "Auth token received from Innersloth URL"
+                                + ", store=" + store
+                                + ", length=" + token.length()
+                );
+
                 saveToken(token);
+            } else {
+                Log.w(
+                        TAG,
+                        "Innersloth account-management URL has no token"
+                );
             }
+
             return;
         }
-        
-        if (Intent.ACTION_SEND.equals(action) && "text/plain".equals(type)) {
-            String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
-            if (sharedText != null) {
-                
-                String token = extractTokenFromText(sharedText);
-                if (token != null) {
-                    cachedToken = token;
-                    Log.i(TAG, "Token received from share: " + token.substring(0, Math.min(20, token.length())) + "...");
-                    saveToken(token);
-                    
-            }
-        }
     }
+        
     private List<AppEntry> resolveInstalledTargets() {
         PackageManager pm = getPackageManager();
         List<AppEntry> result = new ArrayList<>();
@@ -351,9 +361,8 @@ public class SelectorActivity extends AppCompatActivity {
     private String extractTokenFromText(String text) {
         
         String[] patterns = {
-            "accounts.innersloth.com/account-management?store=google&token=",
-            "fusionauth://auth/?token=",
-            "https://auth.yourdomain.com/token="
+            "https://accounts.innersloth.com/account-management?store=google&token=",
+            "accounts.innersloth.com/account-management?store=google&token="
         };
         
         for (String pattern : patterns) {
@@ -373,7 +382,7 @@ public class SelectorActivity extends AppCompatActivity {
         return null;
     }
     private void saveToken(String token) {
-        // Сохраняем в файл для мода
+
         try {
             java.io.File file = new File("/storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/dev.xtracube.authfix.cfg");
             file.getParentFile().mkdirs();
