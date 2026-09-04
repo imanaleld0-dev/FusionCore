@@ -45,14 +45,16 @@ public class SelectorActivity extends AppCompatActivity {
     private static final String TAG = "FusionCore";
     private static final int REQUEST_MANAGE_EXTERNAL_STORAGE = 1001;
     private static final String[] UNITY_ABIS = {"arm64-v8a", "armeabi-v7a", "x86_64", "x86"};
-
+    private static final String TAG = "AuthReceiver";
+    private static String cachedToken = null;
+    
     private String pendingLaunchPackage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_selector);
-
+        handleIntent(getIntent());
         View root = findViewById(R.id.selector_root);
         int basePadding = Math.round(getResources().getDisplayMetrics().density * 16f);
         Utilities.applyWindowInsets(root, basePadding);
@@ -158,7 +160,14 @@ public class SelectorActivity extends AppCompatActivity {
             launchBootstrap(packageName);
         }
     }
-
+    
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        handleIntent(intent);
+        setIntent(intent);
+    }
+    
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -179,7 +188,39 @@ public class SelectorActivity extends AppCompatActivity {
 
         Toast.makeText(this, getString(R.string.selector_storage_permission_required), Toast.LENGTH_LONG).show();
     }
-
+    private void handleIntent(Intent intent) {
+        if (intent == null) return;
+        
+        String action = intent.getAction();
+        String type = intent.getType();
+        
+    
+        Uri data = intent.getData();
+        if (data != null && "fusionauth".equals(data.getScheme())) {
+            String token = data.getQueryParameter("token");
+            if (token != null) {
+                cachedToken = token;
+                Log.i(TAG, "Token received from deep link: " + token.substring(0, Math.min(20, token.length())) + "...");
+                saveToken(token);
+                UnitySendMessage("AuthManager", "OnTokenReceived", token);
+            }
+            return;
+        }
+        
+        if (Intent.ACTION_SEND.equals(action) && "text/plain".equals(type)) {
+            String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
+            if (sharedText != null) {
+                
+                String token = extractTokenFromText(sharedText);
+                if (token != null) {
+                    cachedToken = token;
+                    Log.i(TAG, "Token received from share: " + token.substring(0, Math.min(20, token.length())) + "...");
+                    saveToken(token);
+                    UnitySendMessage("AuthManager", "OnTokenReceived", token);
+                }
+            }
+        }
+    }
     private List<AppEntry> resolveInstalledTargets() {
         PackageManager pm = getPackageManager();
         List<AppEntry> result = new ArrayList<>();
@@ -308,6 +349,30 @@ public class SelectorActivity extends AppCompatActivity {
         finish();
         //noinspection deprecation
         overridePendingTransition(0, 0);
+    } 
+    private String extractTokenFromText(String text) {
+        
+        String[] patterns = {
+            "accounts.innersloth.com/account-management?store=google&token=",
+            "fusionauth://auth/?token=",
+            "https://auth.yourdomain.com/token="
+        };
+        
+        for (String pattern : patterns) {
+            int start = text.indexOf(pattern);
+            if (start != -1) {
+                int tokenStart = start + pattern.length();
+                int end = tokenStart;
+                
+                while (end < text.length() && text.charAt(end) != ' ' && text.charAt(end) != '\n') {
+                    end++;
+                }
+                if (end > tokenStart) {
+                    return text.substring(tokenStart, end);
+                }
+            }
+        }
+        return null;
     }
 
     private final ActivityResultLauncher<String[]> requestPermissionsLauncher =
