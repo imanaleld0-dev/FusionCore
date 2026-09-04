@@ -603,52 +603,6 @@ int il2cpp_init_hook(char* domain_name)
 }
 
 
-// =========================================================
-// EOS Connect Login diagnostic hook
-// =========================================================
-
-int Hooked_EOS_Connect_Login(
-    void* options,
-    void* clientData,
-    void* completionDelegate)
-{
-    log(
-        LogLevel::INFO,
-        TAG,
-        "=== HOOKED: EOS_Connect_Login ==="
-    );
-
-    log_format(
-        LogLevel::INFO,
-        TAG,
-        "options={}",
-        reinterpret_cast<uintptr_t>(options)
-    );
-
-    log_format(
-        LogLevel::INFO,
-        TAG,
-        "clientData={}",
-        reinterpret_cast<uintptr_t>(clientData)
-    );
-
-    log_format(
-        LogLevel::INFO,
-        TAG,
-        "completionDelegate={}",
-        reinterpret_cast<uintptr_t>(
-            completionDelegate
-        )
-    );
-
-
-    // -----------------------------------------------------
-    // ВАЖНО:
-    //
-    // Ничего не записываем в EOS structures.
-    // Только диагностическое чтение.
-    // -----------------------------------------------------
-
     if (options != nullptr)
     {
         auto* loginOptions =
@@ -801,19 +755,7 @@ void install_eos_hooks()
             "EOS_Connect_Login not exported "
             "by libEOSSDK.so"
         );
-
-        /*
-         * Это ожидаемо для твоей версии.
-         *
-         * Мы уже нашли managed/native wrapper:
-         *
-         * ConnectInterface.Login
-         * RVA = 0x2050E2C
-         *
-         * Поэтому здесь НЕ пытаемся подставлять
-         * случайный адрес и НЕ вызываем DobbyHook.
-         */
-
+        
         return;
     }
 
