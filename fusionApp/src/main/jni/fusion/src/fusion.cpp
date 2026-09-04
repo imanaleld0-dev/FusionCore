@@ -430,7 +430,121 @@ static bool parse_fusion_config_from_file(
     return true;
 }
 
+void install_eos_hooks()
+{
+    LOGI("Installing EOS hooks...");
 
+    void* eos_handle = dlopen("libEOSSDK.so", RTLD_NOW);
+    if (eos_handle == nullptr)
+    {
+        LOGE("dlopen(libEOSSDK.so) failed: %s", dlerror());
+        return;
+    }
+
+    void* target = dlsym(eos_handle, "EOS_Connect_Login");
+    if (target == nullptr)
+    {
+        LOGE("EOS_Connect_Login not found: %s", dlerror());
+        return;
+    }
+
+    LOGI("EOS_Connect_Login address=%p", target);
+
+    int hook_result = DobbyHook(
+        target,
+        reinterpret_cast<void*>(Hooked_EOS_Connect_Login),
+        reinterpret_cast<void**>(&original_EOS_Connect_Login)
+    );
+
+    if (hook_result == 0)
+    {
+        LOGI("EOS_Connect_Login hooked successfully");
+    }
+    else
+    {
+        LOGE("DobbyHook failed: %d", hook_result);
+    }
+}
+
+
+    void* eos_connect_login =
+        dlsym(
+            eos_handle,
+            "EOS_Connect_Login"
+        );
+
+
+    if (eos_connect_login == nullptr)
+    {
+        log(
+            LogLevel::WARN,
+            TAG,
+            "EOS_Connect_Login not exported "
+            "by libEOSSDK.so"
+        );
+        
+        return;
+    }
+
+
+    log_format(
+        LogLevel::INFO,
+        TAG,
+        "EOS_Connect_Login address={}",
+        reinterpret_cast<uintptr_t>(
+            eos_connect_login
+        )
+    );
+
+
+    auto hook_result =
+        DobbyHook(
+            eos_connect_login,
+            reinterpret_cast<void*>(
+                Hooked_EOS_Connect_Login
+            ),
+            reinterpret_cast<void**>(
+                &original_EOS_Connect_Login
+            )
+        );
+
+
+    if (hook_result == 0)
+    {
+        log(
+            LogLevel::INFO,
+            TAG,
+            "EOS_Connect_Login hooked successfully!"
+        );
+    }
+    else
+    {
+        log_format(
+            LogLevel::ERROR,
+            TAG,
+            "DobbyHook failed: {}",
+            hook_result
+        );
+    }
+}
+
+__attribute__((destructor))
+static void cleanup_eos_hooks()
+{
+    if (g_allocated_token != nullptr)
+    {
+        std::free(g_allocated_token);
+        g_allocated_token = nullptr;
+    }
+
+    if (g_allocated_credentials != nullptr)
+    {
+        std::free(g_allocated_credentials);
+        g_allocated_credentials = nullptr;
+    }
+
+    original_EOS_Connect_Login = nullptr;
+}
 // =========================================================
 // Stage FusionCore
 // =========================================================
@@ -795,138 +909,6 @@ int il2cpp_init_hook(char* domain_name)
     return result;
 }
 
-
-// =========================================================
-// Install EOS hook
-// =========================================================
-
-void install_eos_hooks()
-{
-    LOGI("Installing EOS hooks...");
-
-    void* eos_handle = dlopen("libEOSSDK.so", RTLD_NOW);
-    if (eos_handle == nullptr)
-    {
-        LOGE("dlopen(libEOSSDK.so) failed: %s", dlerror());
-        return;
-    }
-
-    void* target = dlsym(eos_handle, "EOS_Connect_Login");
-    if (target == nullptr)
-    {
-        LOGE("EOS_Connect_Login not found: %s", dlerror());
-        return;
-    }
-
-    LOGI("EOS_Connect_Login address=%p", target);
-
-    int hook_result = DobbyHook(
-        target,
-        reinterpret_cast<void*>(Hooked_EOS_Connect_Login),
-        reinterpret_cast<void**>(&original_EOS_Connect_Login)
-    );
-
-    if (hook_result == 0)
-    {
-        LOGI("EOS_Connect_Login hooked successfully");
-    }
-    else
-    {
-        LOGE("DobbyHook failed: %d", hook_result);
-    }
-}
-
-
-    void* eos_connect_login =
-        dlsym(
-            eos_handle,
-            "EOS_Connect_Login"
-        );
-
-
-    if (eos_connect_login == nullptr)
-    {
-        log(
-            LogLevel::WARN,
-            TAG,
-            "EOS_Connect_Login not exported "
-            "by libEOSSDK.so"
-        );
-        
-        return;
-    }
-
-
-    log_format(
-        LogLevel::INFO,
-        TAG,
-        "EOS_Connect_Login address={}",
-        reinterpret_cast<uintptr_t>(
-            eos_connect_login
-        )
-    );
-
-
-    auto hook_result =
-        DobbyHook(
-            eos_connect_login,
-            reinterpret_cast<void*>(
-                Hooked_EOS_Connect_Login
-            ),
-            reinterpret_cast<void**>(
-                &original_EOS_Connect_Login
-            )
-        );
-
-
-    if (hook_result == 0)
-    {
-        log(
-            LogLevel::INFO,
-            TAG,
-            "EOS_Connect_Login hooked successfully!"
-        );
-    }
-    else
-    {
-        log_format(
-            LogLevel::ERROR,
-            TAG,
-            "DobbyHook failed: {}",
-            hook_result
-        );
-    }
-}
-
-__attribute__((destructor))
-static void cleanup_eos_hooks()
-{
-    if (g_allocated_token != nullptr)
-    {
-        std::free(g_allocated_token);
-        g_allocated_token = nullptr;
-    }
-
-    if (g_allocated_credentials != nullptr)
-    {
-        std::free(g_allocated_credentials);
-        g_allocated_credentials = nullptr;
-    }
-
-    original_EOS_Connect_Login = nullptr;
-}
-
-
-static void* g_allocated_token = nullptr;
-
-
-struct CredentialsInternal {
-    int32_t ApiVersion;
-    uint32_t padding;
-    void* Token;
-    int32_t Type;
-};
-namespace fs = std::filesystem;
 
 // =========================================================
 // Stage API
