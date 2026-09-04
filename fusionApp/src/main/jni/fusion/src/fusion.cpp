@@ -1,4 +1,3 @@
-// Copyright (c) 2026 XtraCube
 
 #include <unistd.h>
 #include <jni.h>
