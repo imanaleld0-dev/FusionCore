@@ -409,11 +409,6 @@ static bool stage_fusion_config(
     return true;
 }
 
-
-// =========================================================
-// IL2CPP init hook
-// =========================================================
-
 int il2cpp_init_hook(char* domain_name)
 {
     log_format(
@@ -426,10 +421,7 @@ int il2cpp_init_hook(char* domain_name)
     il2cpp_destroy_init_hook();
 
 
-    // -----------------------------------------------------
-    // EOS hook installation
-    // -----------------------------------------------------
-
+    
     install_eos_hooks();
 
 
@@ -441,9 +433,7 @@ int il2cpp_init_hook(char* domain_name)
         il2cpp_init(domain_name);
 
 
-    // -----------------------------------------------------
-    // FusionCore bootstrap
-    // -----------------------------------------------------
+    
 
     if (runtimeConfig.initialized)
     {
