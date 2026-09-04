@@ -142,7 +142,7 @@ int il2cpp_init_hook(char *domain_name)
 { 
     log_format(LogLevel::INFO, TAG, "il2cpp_init called with domain: {}", domain_name);
     il2cpp_destroy_init_hook();
-    ;
+    
     // call the original il2cpp_init function
     int result = il2cpp_init(domain_name);
 
