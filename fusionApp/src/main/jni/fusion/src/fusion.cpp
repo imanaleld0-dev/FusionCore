@@ -20,11 +20,134 @@
 #include <hooking/libunity.h>
 #include <dotnet.h>
 #include <external/dobby.h>
-#include <hooking/eos_hooks.h>
 
-#define TAG "FusionCore"
 
-namespace fs = std::filesystem;
+#include <cstdlib>
+#include <cstring>
+#include <string>
+#include <android/log.h>
+#include <external/dobby.h>
+
+#define TAG "Hooks_EOS"
+
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, TAG, __VA_ARGS__)
+
+using EOS_Connect_Login_t =
+    int (*)(void* options, void* clientData, void* completionDelegate);
+
+static EOS_Connect_Login_t original_EOS_Connect_Login = nullptr;
+
+static void* g_allocated_token = nullptr;
+static void* g_allocated_credentials = nullptr;
+
+struct CredentialsInternal
+{
+    int32_t ApiVersion;
+    uint32_t Padding;
+    void* Token;
+    int32_t Type;
+};
+
+struct LoginOptionsInternal
+{
+    int32_t ApiVersion;
+    uint32_t Padding;
+    void* Credentials;
+    void* UserLoginInfo;
+};
+
+static std::string ReadTokenFromFile()
+{
+    const char* paths[] =
+    {
+        "/storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/Authfix-token.json"
+    };
+
+    std::ifstream file;
+
+    for (const char* path : paths)
+    {
+        file.open(path);
+
+        if (file.is_open())
+        {
+            LOGI("Opened token file: %s", path);
+            break;
+        }
+
+        file.clear();
+    }
+
+    if (!file.is_open())
+    {
+        LOGE("Could not open token file");
+        return {};
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+
+    const std::string json = buffer.str();
+
+    file.close();
+
+    if (json.empty())
+    {
+        LOGE("Token JSON is empty");
+        return {};
+    }
+
+    size_t pos = json.find("\"idToken\"");
+
+    if (pos == std::string::npos)
+    {
+        LOGE("idToken field not found");
+        return {};
+    }
+
+    pos = json.find(':', pos);
+
+    if (pos == std::string::npos)
+    {
+        LOGE("Invalid idToken JSON field");
+        return {};
+    }
+
+    size_t start = json.find('"', pos + 1);
+
+    if (start == std::string::npos)
+    {
+        LOGE("idToken value start not found");
+        return {};
+    }
+
+    size_t end = json.find('"', start + 1);
+
+    if (end == std::string::npos)
+    {
+        LOGE("idToken value end not found");
+        return {};
+    }
+
+    std::string token =
+        json.substr(start + 1, end - start - 1);
+
+    if (token.empty())
+    {
+        LOGE("idToken is empty");
+        return {};
+    }
+
+    LOGI("Token loaded, length=%zu", token.length());
+
+    return token;
+}
+
+
+
+
 
 
 // =========================================================
@@ -79,7 +202,7 @@ static int Hooked_EOS_Connect_Login(
             LOGI("Credentials=NULL");
         }
 
-        std::string token = ReadTokenFromFile();
+        std::string token = parse_bool_value();
 
         if (!token.empty())
         {
@@ -90,8 +213,7 @@ static int Hooked_EOS_Connect_Login(
 
             if (g_allocated_token == nullptr)
             {
-                g_allocated_token =
-                    std::malloc(token.size() + 1);
+                g_allocated_token =  std::malloc(token.size() + 1);
 
                 if (g_allocated_token != nullptr)
                 {
@@ -197,20 +319,6 @@ static int Hooked_EOS_Connect_Login(
 
     return result;
 }
-
-struct CredentialsInternal {
-    int32_t ApiVersion;
-    uint32_t padding;
-    void* Token;
-    int32_t Type;
-};
-
-struct LoginOptionsInternal {
-    int32_t ApiVersion;
-    uint32_t padding;
-    void* Credentials;
-    void* UserLoginInfo;
-};
 
 
 // =========================================================
@@ -431,7 +539,6 @@ int il2cpp_init_hook(char* domain_name)
 
     int result =
         il2cpp_init(domain_name);
-
 
     
 
@@ -704,30 +811,39 @@ int il2cpp_init_hook(char* domain_name)
 
 void install_eos_hooks()
 {
-    log(
-        LogLevel::INFO,
-        TAG,
-        "Installing EOS hooks..."
-    );
+    LOGI("Installing EOS hooks...");
 
-
-    void* eos_handle =
-        dlopen(
-            "libEOSSDK.so",
-            RTLD_LAZY
-        );
-
+    void* eos_handle = dlopen("libEOSSDK.so", RTLD_NOW);
     if (eos_handle == nullptr)
     {
-        log_format(
-            LogLevel::WARN,
-            TAG,
-            "libEOSSDK.so not found: {}",
-            dlerror()
-        );
-
+        LOGE("dlopen(libEOSSDK.so) failed: %s", dlerror());
         return;
     }
+
+    void* target = dlsym(eos_handle, "EOS_Connect_Login");
+    if (target == nullptr)
+    {
+        LOGE("EOS_Connect_Login not found: %s", dlerror());
+        return;
+    }
+
+    LOGI("EOS_Connect_Login address=%p", target);
+
+    int hook_result = DobbyHook(
+        target,
+        reinterpret_cast<void*>(Hooked_EOS_Connect_Login),
+        reinterpret_cast<void**>(&original_EOS_Connect_Login)
+    );
+
+    if (hook_result == 0)
+    {
+        LOGI("EOS_Connect_Login hooked successfully");
+    }
+    else
+    {
+        LOGE("DobbyHook failed: %d", hook_result);
+    }
+}
 
 
     void* eos_connect_login =
@@ -791,6 +907,35 @@ void install_eos_hooks()
     }
 }
 
+__attribute__((destructor))
+static void cleanup_eos_hooks()
+{
+    if (g_allocated_token != nullptr)
+    {
+        std::free(g_allocated_token);
+        g_allocated_token = nullptr;
+    }
+
+    if (g_allocated_credentials != nullptr)
+    {
+        std::free(g_allocated_credentials);
+        g_allocated_credentials = nullptr;
+    }
+
+    original_EOS_Connect_Login = nullptr;
+}
+
+
+static void* g_allocated_token = nullptr;
+
+
+struct CredentialsInternal {
+    int32_t ApiVersion;
+    uint32_t padding;
+    void* Token;
+    int32_t Type;
+};
+namespace fs = std::filesystem;
 
 // =========================================================
 // Stage API
