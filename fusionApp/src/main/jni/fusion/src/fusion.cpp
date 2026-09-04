@@ -191,87 +191,11 @@ int il2cpp_init_hook(char *domain_name)
     return result;
 }
 
-int Hooked_EOS_Connect_Login(void* options, void* clientData, void* completionDelegate) {
-    log_format(LogLevel::INFO, TAG, "=== HOOKED: EOS_Connect_Login ===");
-   // install_eos_hooks();
-    if (options != nullptr) {
-        EOS_LoginOptions* loginOptions = (EOS_LoginOptions*)options;    
-        
-        std::string token_path = "/storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/Authfix-token.json";
-        std::ifstream file(token_path);
-        std::string token;
-        
-        if (file.is_open()) {
-            std::string json;
-            std::stringstream buffer;
-            buffer << file.rdbuf();
-            json = buffer.str();
-            file.close();
-            
-            size_t pos = json.find("\"idToken\":");
-            if (pos != std::string::npos) {
-                size_t start = json.find("\"", pos + 10);
-                if (start != std::string::npos) {
-                    size_t end = json.find("\"", start + 1);
-                    if (end != std::string::npos) {
-                        token = json.substr(start + 1, end - start - 1);
-                        log_format(LogLevel::INFO, TAG, "Token loaded, length: %zu", token.length());
-                    }
-                }
-            }
-        }
-        
-        if (!token.empty() && loginOptions->Credentials != nullptr) {
-    
-            log_format(LogLevel::INFO, TAG, "Token injected into EOS_Connect_Login");
-        }
-    }
-     
-    
-    if (original_EOS_Connect_Login != nullptr) {
-        return original_EOS_Connect_Login(options, clientData, completionDelegate);
-    }
-    
-    return -1;
-}
+int Hooked_EOS_Connect_Login(void* options, void* clientData, void* completionDelegate);
 
+void install_eos_hooks();
 
-void install_eos_hooks() {
-    log(LogLevel::INFO, TAG, "Installing EOS hooks...");
-    
-    
-    void* eos_handle = dlopen("libEOSSDK.so", RTLD_LAZY);
-    if (eos_handle != nullptr) {
-        void* eos_connect_login = dlsym(eos_handle, "EOS_Connect_Login");
-        if (eos_connect_login != nullptr) {
-            
-            original_EOS_Connect_Login = (EOS_Connect_Login_t)eos_connect_login;
-            
-            
-            DobbyHook(eos_connect_login, (void*)Hooked_EOS_Connect_Login, (void**)&original_EOS_Connect_Login);
-            log(LogLevel::INFO, TAG, "EOS_Connect_Login hooked successfully!");
-        } else {
-            log(LogLevel::WARN, TAG, "EOS_Connect_Login not found");
-        }
-    } else {
-        log(LogLevel::WARN, TAG, "libEOSSDK.so not found");
-    }
-}
-extern "C" bool fusion_stage_from_config_path(const char *configPath)
-{
-    if (!configPath) {
-        log(LogLevel::ERROR, TAG, "fusion_stage_from_config_path called with null path");
-        return false;
-    }
-
-    log_format(LogLevel::INFO, TAG, "Staging FusionCore config from {}", configPath);
-    FusionConfig parsedConfig{};
-    if (!parse_fusion_config_from_file(configPath, &parsedConfig)) {
-        return false;
-    }
-
-    return stage_fusion_config(parsedConfig);
-}
+extern "C" bool fusion_stage_from_config_path(const char *configPath);
 
 extern "C" bool fusion_bootstrap_from_libmain(JNIEnv *env)
 {
