@@ -29,7 +29,7 @@ struct LoginOptionsInternal {
 };
 
 typedef int (*EOS_Connect_Login_t)(void* options, void* clientData, void* completionDelegate);
-static EOS_Connect_Login_t original_EOS_Connect_Login = nullptr;
+extern EOS_Connect_Login_t original_EOS_Connect_Login = nullptr;
 
 static void* g_allocated_token = nullptr;
 static bool g_token_injected = false;
