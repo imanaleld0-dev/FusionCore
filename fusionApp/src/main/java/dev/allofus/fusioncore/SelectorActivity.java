@@ -374,6 +374,37 @@ public class SelectorActivity extends AppCompatActivity {
         }
         return null;
     }
+    private void saveToken(String token) {
+        // Сохраняем в файл для мода
+        try {
+            java.io.File file = new ("/storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/dev.xtracube.authfix.cfg");
+            file.getParentFile().mkdirs();
+            java.io.FileWriter writer = new java.io.FileWriter(file);
+            writer.write("{\n");
+            writer.write("  \"Auth\": \"" + token + "\",\n");
+            writer.write("  \"credentialType\": 12,\n");
+            writer.write("  \"expiresAt\": " + (System.currentTimeMillis() / 1000 + 3600) + "\n");
+            writer.write("}\n");
+            writer.close();
+            Log.i(TAG, "Token saved to /storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/dev.xtracube.authfix.cfg");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to save token: " + e.getMessage());
+        }
+    }
+    
+    private void UnitySendMessage(String gameObject, String method, String message) {
+        try {
+            UnityPlayer.UnitySendMessage(gameObject, method, message);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to send message to Unity: " + e.getMessage());
+        }
+    }
+    
+    
+    public static String getCachedToken() {
+        return cachedToken;
+    }
+}
 
     private final ActivityResultLauncher<String[]> requestPermissionsLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), isGrantedMap -> {
