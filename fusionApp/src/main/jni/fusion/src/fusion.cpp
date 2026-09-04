@@ -21,7 +21,6 @@
 #include <dotnet.h>
 #include <external/dobby.h>
 
-
 #include <cstdlib>
 #include <cstring>
 #include <string>
