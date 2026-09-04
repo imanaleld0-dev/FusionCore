@@ -149,7 +149,7 @@ void install_eos_hooks() {
     
     void* eos_handle = dlopen("libEOSSDK.so", RTLD_LAZY);
     if (eos_handle == nullptr) {
-        eos_handle = dlopen("/data/app/~~YbxYVA8dJMHirHj6j11SXQ==/com.innersloth.spacemafia-4k5B7521EUFKT3tZns8Feg==/lib/arm64/libEOSSDK.so, RTLD_LAZY);
+        eos_handle = dlopen("/data/app/~~YbxYVA8dJMHirHj6j11SXQ==/com.innersloth.spacemafia-4k5B7521EUFKT3tZns8Feg==/lib/arm64/libEOSSDK.so", RTLD_LAZY);
         if (eos_handle == nullptr) {
             LOGE("libEOSSDK.so not found");
             return;
