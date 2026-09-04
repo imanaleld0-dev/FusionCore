@@ -45,7 +45,6 @@ public class SelectorActivity extends AppCompatActivity {
     private static final String TAG = "FusionCore";
     private static final int REQUEST_MANAGE_EXTERNAL_STORAGE = 1001;
     private static final String[] UNITY_ABIS = {"arm64-v8a", "armeabi-v7a", "x86_64", "x86"};
-    private static final String TAG = "AuthReceiver";
     private static String cachedToken = null;
     
     private String pendingLaunchPackage;
@@ -377,7 +376,7 @@ public class SelectorActivity extends AppCompatActivity {
     private void saveToken(String token) {
         // Сохраняем в файл для мода
         try {
-            java.io.File file = new ("/storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/dev.xtracube.authfix.cfg");
+            java.io.File file = new File("/storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/dev.xtracube.authfix.cfg");
             file.getParentFile().mkdirs();
             java.io.FileWriter writer = new java.io.FileWriter(file);
             writer.write("{\n");
@@ -404,7 +403,7 @@ public class SelectorActivity extends AppCompatActivity {
     public static String getCachedToken() {
         return cachedToken;
     }
-}
+
 
     private final ActivityResultLauncher<String[]> requestPermissionsLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), isGrantedMap -> {
