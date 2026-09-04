@@ -1,4 +1,3 @@
-
 #include <unistd.h>
 #include <jni.h>
 #include <filesystem>
@@ -34,6 +33,8 @@
 
 static void* g_allocated_token = nullptr;
 static void* g_allocated_credentials = nullptr;
+
+namespace fs = std::filesystem;
 
 struct CredentialsInternal
 {
