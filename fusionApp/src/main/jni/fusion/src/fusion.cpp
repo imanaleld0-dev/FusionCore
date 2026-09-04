@@ -15,6 +15,8 @@
 #include <dotnet.h>
 #include <external/dobby.h>
 #include <hooking/eos_hooks.h>
+#include <sstream>
+
 #define TAG "FusionCore"
 
 namespace fs = std::filesystem;
