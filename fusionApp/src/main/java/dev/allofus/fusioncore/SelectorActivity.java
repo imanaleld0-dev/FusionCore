@@ -384,7 +384,7 @@ public class SelectorActivity extends AppCompatActivity {
     private void saveToken(String token) {
 
         try {
-            java.io.File file = new File("/storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/dev.xtracube.authfix.cfg");
+            java.io.File file = new File("storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/Authfix-token.json");
             file.getParentFile().mkdirs();
             java.io.FileWriter writer = new java.io.FileWriter(file);
             writer.write("{\n");
@@ -393,7 +393,7 @@ public class SelectorActivity extends AppCompatActivity {
             writer.write("  \"expiresAt\": " + (System.currentTimeMillis() / 1000 + 3600) + "\n");
             writer.write("}\n");
             writer.close();
-            Log.i(TAG, "Token saved to /storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/dev.xtracube.authfix.cfg");
+            Log.i(TAG, "Token saved to storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/Authfix-token.json");
         } catch (Exception e) {
             Log.e(TAG, "Failed to save token: " + e.getMessage());
         }
