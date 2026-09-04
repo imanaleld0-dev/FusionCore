@@ -34,10 +34,7 @@
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, TAG, __VA_ARGS__)
 
-using EOS_Connect_Login_t =
-    int (*)(void* options, void* clientData, void* completionDelegate);
 
-static EOS_Connect_Login_t original_EOS_Connect_Login = nullptr;
 
 static void* g_allocated_token = nullptr;
 static void* g_allocated_credentials = nullptr;
@@ -202,7 +199,7 @@ static int Hooked_EOS_Connect_Login(
             LOGI("Credentials=NULL");
         }
 
-        std::string token = parse_bool_value();
+        std::string token = ReadTokenFromFile();
 
         if (!token.empty())
         {
