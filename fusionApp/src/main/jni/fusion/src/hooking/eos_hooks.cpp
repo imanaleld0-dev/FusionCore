@@ -286,6 +286,7 @@ void install_eos_hooks() {
         LOGE("DobbyHook failed: %d", hook_result);
     }
 }
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_fusion_authdiag_EOSHooks_installHook(JNIEnv* env, jclass clazz)
 {
