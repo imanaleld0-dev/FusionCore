@@ -106,7 +106,7 @@ static std::string ReadTokenFromFile() {
     return token;
 }
 
-static int Hooked_EOS_Connect_Login(void* options, void* clientData, void* completionDelegate) {
+static int Hooked_EOS_Connect_Login(void* handle,void* options, void* clientData, void* completionDelegate) {
     LOGI("=== EOS_Connect_Login intercepted ===");
 
     if (options != nullptr) {
