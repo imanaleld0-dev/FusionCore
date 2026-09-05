@@ -75,7 +75,6 @@ static std::string ReadTokenFromFile() {
         LOGE("Token JSON is empty");
         return {};
     }
-
     size_t pos = json.find("\"idToken\"");
     if (pos == std::string::npos) {
         LOGE("idToken field not found");
