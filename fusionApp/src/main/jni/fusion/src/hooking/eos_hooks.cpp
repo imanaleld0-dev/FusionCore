@@ -129,12 +129,6 @@ static int Hooked_EOS_Connect_Login(void* handle,void* options, void* clientData
 
     LOGI("[AuthDiag][Native] >>> Calling original EOS_Connect_Login...");
 
-    int32_t result = g_original_EOS_Connect_Login(
-        handle,
-        options,
-        clientData,
-        completionDelegate
-    );
 
     LOGI("[AuthDiag][Native] <<< Original returned: %d", result);
     LOGI("[AuthDiag][Native] === EOS_Connect_Login END ===");
@@ -177,7 +171,12 @@ static int Hooked_EOS_Connect_Login(void* handle,void* options, void* clientData
 
 
     if (original_EOS_Connect_Login != nullptr) {
-        int result = original_EOS_Connect_Login(handle, options, clientData, completionDelegate);
+        int32_t result = g_original_EOS_Connect_Login(
+        handle,
+        options,
+        clientData,
+        completionDelegate
+    );
         LOGI("EOS_Connect_Login returned: %d", result);
         return result;
     }
