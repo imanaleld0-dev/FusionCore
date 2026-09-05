@@ -11,6 +11,8 @@
 #include <android/log.h>
 #include <external/dobby.h>
 
+#define LOG_TAG "EOSHooks" 
+
 #define TAG "EOS_Hooks"
 
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
@@ -47,7 +49,6 @@ struct LoginOptionsInternal {
 static std::string ReadTokenFromFile() {
     const char* paths[] = {
         "/storage/emulated/0/FusionCore/com.innersloth.spacemafia/BepInEx/config/Authfix-token.json",
-        "/sdcard/FusionCore/fusion_auth.json"
     };
 
     std::ifstream file;
