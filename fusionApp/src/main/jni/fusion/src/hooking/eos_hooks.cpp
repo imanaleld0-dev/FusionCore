@@ -130,8 +130,10 @@ static int Hooked_EOS_Connect_Login(void* handle,void* options, void* clientData
     LOGI("[AuthDiag][Native] >>> Calling original EOS_Connect_Login...");
 
 
-    LOGI("[AuthDiag][Native] <<< Original returned: %d", result);
+    LOGI("[AuthDiag][Native] <<< Original returned!");
     LOGI("[AuthDiag][Native] === EOS_Connect_Login END ===");
+
+    
 
     if (options != nullptr) {
         auto* login = reinterpret_cast<LoginOptionsInternal*>(options);
@@ -181,7 +183,7 @@ static int Hooked_EOS_Connect_Login(void* handle,void* options, void* clientData
         return result;
     }
 
-    return -1;
+    return 0;
 }
 
 bool InstallEOSConnectLoginHook()
