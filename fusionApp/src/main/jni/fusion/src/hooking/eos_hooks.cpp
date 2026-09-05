@@ -146,7 +146,7 @@ static int Hooked_EOS_Connect_Login(void* handle,void* options, void* clientData
     }
 
     if (original_EOS_Connect_Login != nullptr) {
-        int result = original_EOS_Connect_Login(options, clientData, completionDelegate);
+        int result = original_EOS_Connect_Login(handle, options, clientData, completionDelegate);
         LOGI("EOS_Connect_Login returned: %d", result);
         return result;
     }
