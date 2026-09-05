@@ -18,10 +18,10 @@
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, TAG, __VA_ARGS__)
 
 using EOS_Connect_Login_t =
-    EOS_EResult (*)(void* handle,
-                    void* options,
-                    void* clientData,
-                    void* completionDelegate);
+    int32_t (*)(void* handle,
+                void* options,
+                void* clientData,
+                void* completionDelegate);
 
 static EOS_Connect_Login_t original_EOS_Connect_Login = nullptr;
 static void* g_allocated_token = nullptr;
