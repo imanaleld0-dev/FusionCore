@@ -27,6 +27,9 @@ static EOS_Connect_Login_t original_EOS_Connect_Login = nullptr;
 static void* g_allocated_token = nullptr;
 static void* g_allocated_credentials = nullptr;
 
+static EOS_Connect_Login_t g_original_EOS_Connect_Login = nullptr;
+static bool g_hookInstalled = false;
+
 struct CredentialsInternal {
     int32_t ApiVersion;
     uint32_t Padding;
@@ -106,8 +109,35 @@ static std::string ReadTokenFromFile() {
     return token;
 }
 
+
+
 static int Hooked_EOS_Connect_Login(void* handle,void* options, void* clientData, void* completionDelegate) {
     LOGI("=== EOS_Connect_Login intercepted ===");
+    LOGI("[AuthDiag][Native] === EOS_Connect_Login HOOKED ===");
+    LOGI("[AuthDiag][Native] handle         = %p", handle);
+    LOGI("[AuthDiag][Native] options        = %p", options);
+    LOGI("[AuthDiag][Native] clientData     = %p", clientData);
+    LOGI("[AuthDiag][Native] completionDelegate = %p", completionDelegate);
+
+    if (options != nullptr)
+    {
+        uint8_t* opts = (uint8_t*)options;
+        LOGI("[AuthDiag][Native] options bytes: %02x %02x %02x %02x %02x %02x %02x %02x",
+             opts[0], opts[1], opts[2], opts[3],
+             opts[4], opts[5], opts[6], opts[7]);
+    }
+
+    LOGI("[AuthDiag][Native] >>> Calling original EOS_Connect_Login...");
+
+    int32_t result = g_original_EOS_Connect_Login(
+        handle,
+        options,
+        clientData,
+        completionDelegate
+    );
+
+    LOGI("[AuthDiag][Native] <<< Original returned: %d", result);
+    LOGI("[AuthDiag][Native] === EOS_Connect_Login END ===");
 
     if (options != nullptr) {
         auto* login = reinterpret_cast<LoginOptionsInternal*>(options);
@@ -145,6 +175,7 @@ static int Hooked_EOS_Connect_Login(void* handle,void* options, void* clientData
         }
     }
 
+
     if (original_EOS_Connect_Login != nullptr) {
         int result = original_EOS_Connect_Login(handle, options, clientData, completionDelegate);
         LOGI("EOS_Connect_Login returned: %d", result);
@@ -152,6 +183,40 @@ static int Hooked_EOS_Connect_Login(void* handle,void* options, void* clientData
     }
 
     return -1;
+}
+
+bool InstallEOSConnectLoginHook()
+{
+    if (g_hookInstalled)
+    {
+        LOGI("[AuthDiag][Native] Hook already installed");
+        return true;
+    }
+
+    
+    void* eosLib = dlopen("libEOSSDK.so", RTLD_NOW);
+    if (!eosLib)
+    {
+        eosLib = dlopen("libEOSSDK-Mac-Shipping.dylib", RTLD_NOW);
+    }
+    if (!eosLib)
+    {
+        eosLib = dlopen("libEOSSDK-Linux-Shipping.so", RTLD_NOW);
+    }
+    if (!eosLib)
+    {
+        LOGE("[AuthDiag][Native] Failed to open EOS SDK library: %s", dlerror());
+        return false;
+    }   
+}
+
+
+void LogAuthDiag(const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    __android_log_vprint(ANDROID_LOG_INFO, LOG_TAG, fmt, args);
+    va_end(args);
 }
 
 __attribute__((destructor))
@@ -168,7 +233,31 @@ static void cleanup_eos_hooks() {
 
     original_EOS_Connect_Login = nullptr;
 }
+    
+extern int DobbyHook(void* address, void* replace_func, void** orig_func);
+int ret = DobbyHook(origFunc, (void*)Hooked_EOS_Connect_Login, (void**)&g_original_EOS_Connect_Login);
 
+    if (ret != 0)
+    {
+        LOGE("[AuthDiag][Native] DobbyHook failed with code: %d", ret);
+        dlclose(eosLib);
+        return false;
+    }
+
+    g_hookInstalled = true;
+    LOGI("[AuthDiag][Native] Hook installed successfully");
+    return true;
+}
+void RemoveEOSConnectLoginHook()
+{
+    if (!g_hookInstalled)
+        return;
+ 
+    extern int DobbyDestroy(void* address);
+
+    LOGI("[AuthDiag][Native] Hook removal requested (not fully implemented)");
+    g_hookInstalled = false;
+}
 void install_eos_hooks() {
     LOGI("Installing EOS hooks...");
 
@@ -198,4 +287,10 @@ void install_eos_hooks() {
         LOGE("DobbyHook failed: %d", hook_result);
     }
 }
-
+extern "C" JNIEXPORT void JNICALL
+Java_com_fusion_authdiag_EOSHooks_installHook(JNIEnv* env, jclass clazz)
+{
+    (void)env;
+    (void)clazz;
+    InstallEOSConnectLoginHook();
+}
