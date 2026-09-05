@@ -247,7 +247,7 @@ int ret = DobbyHook(origFunc, (void*)Hooked_EOS_Connect_Login, (void**)&g_origin
     g_hookInstalled = true;
     LOGI("[AuthDiag][Native] Hook installed successfully");
     return true;
-}
+
 void RemoveEOSConnectLoginHook()
 {
     if (!g_hookInstalled)
